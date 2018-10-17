@@ -1,0 +1,567 @@
+---
+title: "Midterm"
+author: "John Harvard"
+date: "October 14, 2018"
+output: 
+  html_document:
+    css: 'style.css'
+
+---
+
+```{r setup, include=FALSE}
+
+# Include Libraries
+# We will be using the kableExtra library to help with the dynamic highlighting of individual cells
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Load Kentucky's 6th Congressional district data into a variable to be used throughout problems 1 - 4
+election_poll_data <- read_csv("mt_1_elections-poll-ky06-1.csv")
+
+# The dynamic highlighting in this file has been done via a combination of kableExtra commands
+#   and CSS code. The kable extra commands run "ifelse" statements on the data to decide which
+#   data to highlight. All CSS has been moved to the file "style.css". The css code has been 
+#   commented there.
+
+```
+
+### Question 1:
+
+```{r p1setup, include=FALSE}
+
+# Our goal is to create a table which contains the total responses for each category
+# Our steps are the following:
+#   1. Summarize total responses for each party (Dem, Rep, Und)
+#   2. Use cbind to add a new column to the dataset that will show the title "Number 
+#         of Respondants" along with the total responses. We will use <em> html tags
+#         to properly style this title. We used the nrow() function to calculate the
+#         total number of rows in the dataset (total responses) and the cbind()
+#         function to add this title to the dataset
+#   3. Use KnitrExtra features to set dynamic updating of cell background color
+#   4. Display table using kable()
+
+
+
+# 1. Summarize total responses for each party (Dem, Rep, Und) using the summarize() command
+
+electionResponses <- election_poll_data %>% 
+  summarize(DEM. = sum(response == "Dem"), 
+            REP. = sum(response == "Rep"), 
+            UND. = sum(response == "Und"))
+
+# 2. Cbind() adds a new column to the beginning of the dataset. This column contains the title
+#    name and the subtitle. <em> tags use classes from the stylesheet "style.css" to set 
+#    appropriate style characteristics on the different elements of the title
+
+electionResponses <- cbind(Party = 
+                             paste("<em class = 'title1'> Number of Respondents </em>",
+                                   "<em class = 'title2'>",  
+                                   paste("(", nrow(election_poll_data), 
+                                   "total )"), "</em>"), 
+                                   electionResponses)
+
+# 3. Use mutate to set the cell_spec feature from kableExtra. This feature allows us to set
+# the background color of a certain cell to be dependent on an if statement. In this case,
+# we set the DEM. cell to be blue if it has a greater value than the REP. cell, and visa-versa
+
+election_display <- electionResponses %>% 
+  mutate(DEM. = cell_spec(DEM., background = 
+                            ifelse(DEM. > REP., "#2985c4", "#cf222b"), color = "white"))
+
+```
+```{r p1, echo = FALSE}
+
+# 4. Use kable to display the data from election_display. We will be setting the following
+# variables in this call to kable:
+#    caption: A descriptive title for the table
+#    escape: set to FALSE as default
+#    align: center align the right 3 columns for the dynamic highlighting to look good
+#    kable_styling: allows for dynamic highlighting feature
+#    column_spec: sets the style of the first column to be a white background and a 
+#    darker text shade
+
+election_display %>% 
+  kable(caption = 
+          "More respondants favor the Democratic party in Kentucky's 6th Congressional District", 
+        escape = FALSE, 
+        align = c("l","c","c","c"), 
+        col.names = c("", "DEM.", "REP.", "UND.")) %>% 
+  kable_styling(bootstrap_options = c("hover")) %>% 
+  column_spec(1, color = "#666", background = "white")
+
+```
+
+
+### Question 2:
+
+
+```{r p2setup, include=FALSE}
+
+# Our goal is to create a table which contains the total votes for each party grouped
+#   by party affiliation
+# Our steps are the following:
+#   1. Create dataset with response data grouped by partyid
+#   2. Use mutate() to add new titles into graph with subtitles
+#   3. Sort the rows in a logical order for presentation
+#   4. Use KnitrExtra features to set dynamic updating of cell background color
+#   5. Display table using kable()
+
+
+
+# 1. Create dataset with response data grouped by partyid has the following steps:
+#    - use mutate() and an ifelse statement to group "Independent (No party)" and 
+#      "[DO NOT READ] Refused" into one dataset called "Refused / Independent"
+#    - use mutate() to rename all "or as a member of another political party" to
+#      "Other Party"
+#    - group_by(Party_Affiliation) to display results for each party
+#    - use summarize to calculate total responses for DEM., REP., UND.
+#        summarize also calculates total responses for each group to 
+#        be used in subtitle generation
+
+data_party_merged <- election_poll_data %>% 
+  mutate(Party_Affiliation = 
+           ifelse(partyid %in% 
+                    c("Independent (No party)", 
+                      "[DO NOT READ] Refused"), 
+                      "Refused / Independent", partyid)) %>% 
+  mutate(Party_Affiliation = 
+           (ifelse(Party_Affiliation == "or as a member of another political party", 
+                                        "Other Party", Party_Affiliation))) %>% 
+  group_by(Party_Affiliation) %>% 
+  summarize(DEM. = sum(response == "Dem"), 
+            REP. = sum(response == "Rep"), 
+            UND. = sum(response == "Und"), 
+            total = sum(Party_Affiliation == Party_Affiliation))
+
+# 2. Use mutate() to add new titles into graph with subtitles. The new title contains the title
+#    name and the subtitle. <em> tags use classes from the stylesheet "style.css" to set 
+#    appropriate style characteristics on the different elements of the title
+
+data_party_merged <- data_party_merged %>% 
+  mutate(Party = paste("<em class = 'title1'>", 
+                       Party_Affiliation, "</em>",
+                       "<em class = 'title2'>( ", 
+                       total, " responses )</em>"))
+
+# 3. Sort the rows in a logical order for presentation. We use fct_relevel() to change the
+#    order of the rows when we sort them, and then arrange() to sort the rows in the order
+#    that we established with fct_relevel()
+
+data_party_merged <- data_party_merged %>% 
+  mutate(Party_Affiliation = 
+           fct_relevel(Party_Affiliation, 
+                       "Democrat", "Republican","Refused / Independent", "Other")) %>% 
+  arrange(Party_Affiliation) 
+
+# 4. Use KnitrExtra features to set dynamic updating of cell background color
+#    Use mutate to set the cell_spec feature from kableExtra. This feature allows us to set
+#     the background color of a certain cell to be dependent on an if statement. In this case,
+#     we set the DEM. cell to be blue if it has a greater value than the REP. cell, and REP. to
+#     be red if it has a greater value than the DEM. cell. We also create a variable DEM.2 that
+#     is equal to DEM to deal with the issue of comparing equivalence of REP. and DEM. once 
+#     DEM has been altered with the new styling (this can affect equivalence)
+#    Select() us used to select the proper title row and data rows
+
+data_party_display <- data_party_merged %>% 
+  mutate(DEM.2 = DEM., 
+         DEM. = cell_spec(DEM., 
+                          background = ifelse(DEM. > REP., "#2985c4", "none"), 
+                          color = ifelse(DEM. > REP., "white", "#666")), 
+         REP. = cell_spec(REP., 
+                          background = ifelse(REP. > DEM.2, "#cf222b", "none"), 
+                          color = ifelse(REP. > DEM.2, "white", "#666"))) %>% 
+  select(Party, DEM., REP., UND.)
+
+```
+```{r p2, echo=FALSE}
+
+# 5. Display data_party_display using kable(). We will be setting the following
+# variables in this call to kable:
+#    caption: A descriptive title for the table
+#    escape: set to FALSE as default
+#    align: center align the right 3 columns for the dynamic highlighting to look good
+#    kable_styling: allows for dynamic highlighting feature
+#    column_spec: sets the style of the first column to be a white background and a 
+#    darker text shade
+
+data_party_display %>% 
+  kable(caption = "Most refused, independent and other party voters 
+                   support the Democratic candidate in Kentucky's 6th 
+                   Congressional District", 
+        escape = FALSE,  
+        align = c("l","c","c","c")) %>% 
+  kable_styling(bootstrap_options = c("hover")) %>% 
+  column_spec(1, color = "#666", background = "white")
+  
+
+```
+
+
+### Question 3:
+
+```{r p3setup, include = FALSE}
+
+# Our goal is to create a table which contains the average age of voters grouped
+#   by their likelihood of responding a certain way
+# Our steps are the following:
+#   1. Filter out responses where age is not listed using filter()
+#   2. Use "if"" statements to create new column with proper age values
+#   3. Use group_by() and summarize() to calculate total number of responses
+#      for each response category and total age of people who submitted those
+#      responses
+#   4. Remove "[DO NOT READ] from likely column"
+#   5. Use mutate() to add in the proper titles with dynamic subtitles
+#   6. Calculate average age for each group and select proper variables to display
+#   7. Sort likely column in logical order and select proper variables to display.
+#   8. Use mutate() to change all instances of NaN to NA
+#   9. Display table using kable(), set kable() values
+
+
+
+# 1. Used a filter command along with the startsWith() function to detect and remove
+#    all cases where the ager data starts with "[DO NOT READ]"
+
+data_ager_merged <- election_poll_data %>% 
+  filter(!startsWith(ager, "[DO NOT READ]"))
+
+# 2. Used a series of if statements to detect the ager data and assign a proper age value
+#    to a new data column called ager2. The ifelse statements follow the logic:
+#    if(statement, value if statement is true, value if statement is false)
+
+data_ager_merged <- data_ager_merged %>% 
+  mutate(ager2 = 
+           ifelse(ager == "18 to 34", 26, 
+                  ifelse(ager == "35 to 49", 42, 
+                         ifelse(ager == "50 to 64", 57, 75))))
+
+# 3. Use group_by() statment to group the data by likely column. Then used a series of 
+#    summarize statements to calculate the total number of a given response (Dem, Rep, Und)
+#    and the total sum of the ages of the people giving those responses (DEM.AGE, REP.AGE
+#    UND.AGE)
+
+data_ager_merged <- data_ager_merged %>% 
+  group_by(likely) %>% 
+  summarize(DEM. = sum(response == "Dem"), 
+            DEM.AGE = sum(ifelse((response == "Dem"), ager2, 0)), 
+            REP. = sum(response == "Rep"), 
+            REP.AGE = sum(ifelse((response == "Rep"), ager2, 0)), 
+            UND. = sum(response == "Und"), 
+            UND.AGE = sum(ifelse((response == "Und"), ager2, 0)),
+            total_num = sum(likely == likely))
+
+
+# 4. Using mutate() and an ifelse statement to detect and remove "[DO NOT READ]" from
+#    likely column
+
+data_ager_merged <- data_ager_merged %>% 
+  mutate(likely = ifelse(startsWith(likely, "[DO"), "Don't know/Refused", likely))
+
+# 5. Use mutate() to add new titles into graph with subtitles. The new title contains the title
+#    name and the subtitle. <em> tags use classes from the stylesheet "style.css" to set 
+#    appropriate style characteristics on the different elements of the title
+
+data_ager_merged <- data_ager_merged %>% 
+  mutate(title_row = paste("<em class = 'title1'>", 
+                           likely, 
+                           "</em>", 
+                           "<em class = 'title2'>( ", 
+                           total_num, 
+                           " responses )</em>")) 
+
+# 6. Use a mutate() statement to calculate the average age of each of the groups, and a 
+#    select statement to select the proper variables to display. The average age is equal
+#    to the sum of the ages of the people who submitted a given response divided by the
+#    total number of people who gave that response
+
+data_ager_merged <- data_ager_merged %>% 
+  mutate(DEM.AVERAGE.AGE = round(DEM.AGE / DEM.), 
+         REP.AVERAGE.AGE = round(REP.AGE / REP.), 
+         UND.AVERAGE.AGE = round(UND.AGE / UND.))
+
+# 7. Sort likely column in logical order and select proper variables to display. We use
+#    fct_relevel to set the order of the likely column. We then use arrange() to sort by 
+#    this order. Finally, we select the title_row, and the three response variables to
+#    display
+
+data_ager_merged <- data_ager_merged %>% 
+  mutate(likely = fct_relevel(likely, 
+                              "Almost certain", 
+                              "Very likely", 
+                              "Somewhat likely", 
+                              "Not very likely", 
+                              "Not at all likely", 
+                              "Don't know/Refused")) %>% 
+  arrange(likely) %>% 
+  select(title_row, DEM.AVERAGE.AGE, REP.AVERAGE.AGE, UND.AVERAGE.AGE)
+
+# 8. Use mutate to change all instances of NaN to NA, as this is appropriate for the 
+#    datatype
+
+data_ager_merged <- data_ager_merged %>% 
+   mutate(REP.AVERAGE.AGE = ifelse(is.nan(REP.AVERAGE.AGE), NA, REP.AVERAGE.AGE)) %>% 
+   mutate(DEM.AVERAGE.AGE = ifelse(is.nan(DEM.AVERAGE.AGE), NA, DEM.AVERAGE.AGE)) %>% 
+   mutate(UND.AVERAGE.AGE = ifelse(is.nan(UND.AVERAGE.AGE), NA, UND.AVERAGE.AGE))
+
+```
+```{r p3, echo=FALSE}
+
+# 9. Display data_ager_merged using kable(). We will be setting the following
+# variables in this call to kable:
+#    caption: A descriptive title for the table
+#    escape: set to FALSE as default
+#    align: center align the right 3 columns for the dynamic highlighting to look good
+#    kable_styling: allows for dynamic highlighting feature
+#    column_spec: sets the style of the first column to be a white background and a 
+#    darker text shade
+
+data_ager_merged %>% 
+  kable(caption = "Undecided voters' average age was higher than 
+                   that of democratic voters among respondants who 
+                   listed themselves at 'Almost Certain' of their 
+                  decision in Kentucky's 6th Congressional District", 
+        escape = FALSE,  
+        align = c("l", "c", "c", "c"), 
+        col.names = c("Certainty of Response", "Average DEM. Age", 
+                      "Average REP. Age", "Average UND. Age")) %>%  
+  kable_styling(bootstrap_options = c("hover")) %>% 
+  column_spec(1, color = "#666", background = "white")
+
+```
+
+
+## Question 4:
+
+```{r p4setup, include = FALSE}
+
+# Our goal is to create a table which contains the weighted response percentages
+#   in the format of the NYT table.
+# Our steps are the following:
+# 1. Calculate voting percentages by region and total number of responses by region
+# 2. Use mutate() to set row titles and subtitles dynamically
+# 3. Use select() function to select the proper data for output
+# 4. Use kableExtra to dynamically update backgrounds of cells
+# 5. Display table using kable(), set kable() values
+
+# 1. Use group_by() to group by region. Then, summarize() to find the sum of weights,
+#    which we use to calculate the percentages for DEM., REP., and UND.. These are 
+#    calculated using the formula sum(responses * weights) * 100 / total weights
+#    We then use the paste0 and round functions to properly format the numbers as 
+#    percentages
+
+data_region_merged <- election_poll_data %>% 
+  group_by(region) %>% 
+  summarize(total = sum(final_weight), 
+            DEM. = paste0(round(sum((response == "Dem") * final_weight)*100/total), "%"), 
+            REP. = paste0(round(sum((response == "Rep") * final_weight) * 100/total), "%"), 
+            UND. = paste0(round(sum((response == "Und") * final_weight)*100/total),"%"), 
+            total_responds = sum(region == region))
+
+# 2. Use mutate() to add new titles into graph with subtitles. The new title contains the title
+#    name and the subtitle. <em> tags use classes from the stylesheet "style.css" to set 
+#    appropriate style characteristics on the different elements of the title
+
+data_region_merged <- data_region_merged %>% 
+  mutate(titleRow = paste("<em class = 'title1'>", 
+                          region, 
+                          "</em>", "<em class = 'title2'>( ", 
+                          total_responds, 
+                          " responses )</em>"))
+
+# 3. Use select() function to select the proper data for output
+
+data_region_merged <- data_region_merged %>% 
+  select(titleRow, DEM., REP., UND.)
+
+# 4. Use KnitrExtra features to set dynamic updating of cell background color
+#    Use mutate to set the cell_spec feature from kableExtra. This feature allows us to set
+#     the background color of a certain cell to be dependent on an if statement. In this case,
+#     we set the DEM. cell to be blue if it has a greater value than the REP. cell, and REP. to
+#     be red if it has a greater value than the DEM. cell. We also create a variable DEM.2 that
+#     is equal to DEM to deal with the issue of comparing equivalence of REP. and DEM. once 
+#     DEM has been altered with the new styling (this can affect equivalence)
+#    Select() us used to select the proper title row and data rows
+
+data_region_merged <- data_region_merged %>% 
+  mutate(DEM.2 = DEM., 
+         DEM. = cell_spec(DEM., 
+                          background = ifelse(DEM. > REP., "#2985c4", "none"), 
+                          color = ifelse(DEM. > REP., "white", "#666")),
+         REP. = cell_spec(REP., 
+                          background = ifelse(REP. > DEM.2, "#cf222b", "none"), 
+                          color = ifelse(REP. > DEM.2, "white", "#666"))) %>% 
+  select(titleRow, DEM., REP., UND.)
+
+```
+```{r p4, echo=FALSE}
+
+# 5. Display data_ager_merged using kable(). We will be setting the following
+# variables in this call to kable:
+#    caption: A descriptive title for the table
+#    escape: set to FALSE as default
+#    align: center align the right 3 columns for the dynamic highlighting to look good
+#    kable_styling: allows for dynamic highlighting feature
+#    column_spec: sets the style of the first column to be a white background and a 
+#    darker text shade
+
+data_region_merged %>% 
+  kable(caption = "More voters in Fayette and Inner Bluegrass 
+                  supported the Democratic candidate in Kentucky's 
+                  6th Congressional District", 
+        escape = FALSE,  
+        align = c("l", "c", "c", "c"), 
+        col.names = c("Region", "DEM.", "REP.", "UND.")) %>%  
+  kable_styling(bootstrap_options = c("hover")) %>% 
+  column_spec(1, color = "#666", background = "white")
+
+```
+
+
+## Question 5:
+
+```{r p5setup, include = FALSE}
+
+# We will be constructing a graph to relate final_weight to other variables in our data
+# The following are the steps we will take:
+# 1. Download new CSV data
+# 2. Change name of [DO NOT READ] columns to "Refused" 
+# 3. Simplify the race_eth column
+# 4. Create a ggplot object with effective variables
+# 5. Add geom_boxplot
+
+
+
+# 1.Download new CSV data
+
+election_poll_data_pa <- read_csv("elections-poll-pa07-1.csv")
+
+# 2. We use mutate() and an ifelse statement to detect and change the 
+#    [DO NOT READ] columns to "Refused"
+
+election_poll_data_pa <- election_poll_data_pa %>% 
+  mutate(ager = ifelse(startsWith(ager, "[DO NOT READ]"), "Refused", ager))
+
+# 3. Our goal is to look at how final_weight differs between people who are white
+#    and non-white. So, we will mutate the race_eth column and change the names
+#    that are not "White" to "Other". This allows for a better visual comparison
+#    between the different parties
+
+election_poll_data_pa <- election_poll_data_pa %>% 
+  mutate(Race = ifelse(race_eth %in% c("White"), "White", "Other"))
+
+# 4. We use ggplot to plot out gender vs. final_weight. We use the race as the fill color.
+#    This allows use to easily compare the weightings of the two race categories to eachother
+#    and also the weightings of genders to eachother.
+
+p2 <- ggplot(data = election_poll_data_pa,
+            mapping = aes(x = gender,
+                          y = final_weight, 
+                          fill = Race))
+
+
+```
+```{r p5, echo=FALSE}
+
+# 5. A boxplot is used to effectively show the information. Due to the high frequency of 
+#    categorical variables a boxplot makes the most sense in this situation. These 
+#    categorical variables include response, ager, race_eth, gender, educ4, likely, 
+#    partyid, region, and turnout_class. Faceting also allows us to show another categorical
+#    variable effectively. The alpha is set to .5 to help visualize the outliers.
+
+p2 + geom_boxplot(alpha = .5) + 
+  facet_grid( ~ ager) + 
+  labs(title = "White Male Respondants have Less Impact in Poll Results",
+       subtitle = "Less weight is placed on people who participate in polls more often.",
+       caption = "Data Source: Pennsylvania 7th Congressional District Poll Data",
+         x = "Gender", 
+         y = "Final Weight") 
+
+```
+
+
+```{r p5extrasetup, include = FALSE}
+
+# We will be constructing a graph to relate final_weight to other variables in our data.
+# We will also be donwloading all csv data from the Upshot/Siena repo
+# The following are the steps we will take:
+# 1. Create a function to read in csv's and keep track of their filenames
+# 2. Use the reading function to read and store all csv data from the working directory
+# 3. Change name of [DO NOT READ] columns to "Refused" 
+# 4. Simplify the race_eth column
+# 5. Create a ggplot object with effective variables
+# 6. Add geom_boxplot
+
+
+# 1. Create a function that reads in a csv and also uses mutate() to add the filename
+# to each row of the loaded data
+
+read_csv_filename <- function(fn) {
+    read_csv(fn) %>% 
+        mutate(filename = fn)
+}
+
+# 2. Use the read_csv_filename function to read in all data from csv files in the working
+#    directory. Uses a map function to iterate through every element of read_csv_filename()
+
+all_election_data <-
+    list.files(pattern = "*.csv", 
+               full.names = T) %>% 
+    map_df(~read_csv_filename(.))
+
+# 3. We use mutate() and an ifelse statement to detect and change the 
+#    [DO NOT READ] rows of ager to "Refused", as this is one of the main
+#    variables we are examining in this graph
+
+all_election_data <- all_election_data %>% 
+  mutate(ager = ifelse(startsWith(ager, "[DO NOT READ]"), "Refused", ager))
+
+
+# 3. Like in the previous graph, our goal is to look at how final_weight differs 
+#    between people who are white and non-white. So, we will mutate the race_eth 
+#    column and change the names that are not "White" to "Other". This allows for 
+#    a better visual comparison between the different parties
+
+all_election_data <- all_election_data %>% mutate(Race = ifelse(race_eth %in% c("White"), "White", "Other"))
+
+# 4. We use mutate() and an ifelse statement to detect and change the 
+#    [DO NOT READ] rows of gender to "Refused", as this is one of the main
+#    variables we are examining in this graph
+
+all_election_data <- all_election_data %>% filter(!(startsWith(gender,"[DO NOT READ]")))
+
+# 5. There are few rows containing final_weight greater than 4, so we will remove
+#  them in order to make the graph more visually appealing
+
+all_election_data <- all_election_data %>% filter(final_weight < 4)
+
+
+# 6. We use ggplot to plot out gender vs. final_weight. We use the race as the fill color.
+#    This allows use to easily compare the weightings of the two race categories to eachother
+#    and also the weightings of genders to eachother.
+
+p <- ggplot(data = all_election_data,
+            mapping = aes(x = gender,
+                          y = final_weight, fill = Race))
+
+
+```
+```{r p5extra, echo=FALSE}
+
+# 5. Like in the preious graph, a boxplot is used to effectively show the information. 
+#    Due to the high frequency of  categorical variables a boxplot makes the most sense 
+#    in this situation. These categorical variables include response, ager, race_eth, 
+#    gender, educ4, likely, partyid, region, and turnout_class. Faceting also allows 
+#    us to show another categorical variable effectively. The alpha is set to .5 to 
+#    help visualize the outliers.
+
+p + geom_boxplot(alpha = .5) + facet_grid( ~ ager) + 
+    labs(title = "White Female Respondants have Less Impact in Poll Results",
+       subtitle = "Less weight is placed on people who to participate in polls more often.",
+       caption = "Data Source: Upshot/Siena Poll Data",
+       x = "Gender", 
+       y = "Final Weight")
+
+```

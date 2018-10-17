@@ -1,0 +1,88 @@
+---
+title: 'Mid-Term #1'
+author: "David Kane"
+date: "October 10, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+
+# Load CSV Data
+election_poll_data <- read_csv("mt_1_elections-poll-ky06-1.csv")
+
+```
+
+We will use the `mt_1_elections-poll-ky06-1.csv` polling data (as distributed in this repo) to examine the state of the race for Kentucky's sixth congressional district. 
+
+## Workflow
+
+* It is your responsibility to keep your repo clean and organized. You need to create (at least) two new files: `mt_1.Rmd` and `mt_1.html`. They must be named exactly this. There is nothing wrong with committing other files, like your .Rproj or .gitignore files, but be intentional. You should certainly add any csv files that you need, as in Question 5. Future employers will judge you on the cleanliness and organisation of your workspace. That judgment starts now.
+
+* You should commit your work regularly and push every hour or so. Committing ensures that you keep track of what you are doing. It would make sense to, for example, commit after completing each of the problems. You do not need to push after every commit (although I often do). Pushing just ensures that your work is safe on GitHub should your computer fail. I could never stand to lose more than an hour of work, so I always push at least once an hour. If you do not have at least 5 commits with non-trivial commit messages, we will take points off.
+
+* The two documents you are submitting are very different. 
+    + The Rmd file is a *technical* document, an accurate record of your work which allows you (and us!) to reproduce your html easily. It should be well-organized, nicely formatted and clean. Non-technical readers will not understand it, but that is OK.  
+    + The html file is a *presentation* document, designed for non-technical readers. No R code or weird warnings or obscure messages mar its pleasing appearance. It is a simple list of the answers to the questions.
+    
+* It must be possible for us to replicate your work. To be specific, we should be able to connect to your repo, open up your Rmd file, hit knit, and create the same html that was created by you in the repo.  
+
+* All answers should be R tables or graphics with clear titles, clean formatting, and a pleasant appearance. You should not add any accompanying text. Recall our solution to Problem Set #2.
+
+* There are no trick questions. We are trying to be as clear as possible. If we don't specify a particular structure for the answer, you may use whatever you like (within reason). If we do specify something --- that the table should be 6x3 or the graphic use 4x2 panels --- you must match our request.
+
+* The exam is due Sunday, October 14 by 10:05 PM. Late exams are penalized 5 points (out of 20) for each day late.
+
+## Question 1:
+
+Use the polling data `mt_1_elections-poll-ky06-1.csv` for the 6th Congressional District in Kentucky. Calculate the raw number of people who provided each response answer. In other words, we need a table which provides just three numbers: the total number of respondents for each of the three values of `response`. 
+
+## Question 2:
+
+There is a `partyid` variable. Combine the "Independent (No party)" and "[DO NOT READ] Refused" levels into a new level. Create a 4x3 table which displays the number of responses in each category for each of the new levels of `partyid`. Clean up names for all variables so that the table is pleasing to the eye.
+
+## Question 3:
+
+There is an age variable (`ager`) in the data. It provides an age range for respondents who responded to the poll. Assume that a person's true age is at the midpoint of their range. Assume that those in the oldest category are 75. Create a table of the average age for each category of `likely` voter and each `response`. (The table will be 6 by 3.) Order the levels of the variables in a sensible way in the table.
+
+
+## Question 4: 
+
+Consider the *New York Times* [coverage](mt_1_background.htm) of this race. Replicate the information in the "Region" table. We are not asking you to replicate the exact formatting, although a package like `formattable` might make that possible. We just want the correct values in the correct order, meaning a 3-by-3 table. We recommend `kable()`, although you may use any function/package you like. 
+
+
+## Question 5: 
+
+Pick a different [Upshot/Siena](https://github.com/TheUpshot/2018-live-poll-results) congressional race (not Kentucky 6th or Maine 2nd), for which polling is complete. Place a copy of the data for that race in your repo.  Use that data to create a graphic (but not a violin plot) which relates `final_weight` --- the variable which we seek to understand --- to one or more other variables in the data (but not only to education). This is your chance to do something like Question 3 from Problem Set #3 but using a different district and different variable(s) and a different graphic. For inspiration, we recommend reading [*Visual and Statistical Thinking: Displays of Evidence for Making Decisions*](https://canvas.harvard.edu/files/6289007/download?download_frd=1) by Edward Tufte. For concrete advice, consult [*Data Visualization: A practical introduction*](http://socviz.co/) by Kieran Healy. Chapter 1 provides Healy's general philosophy for making graphics, while chapters 3-5 detail particular uses of `ggplot` that may be useful for you in answering this question. You goal for this question is to create a graphic that Healy would not find fault with. He gives very specific advice. Follow it.  
+
+
+## Notes
+
+* Your solution will have a section header for each question. There should not be any text outside of the tables and graphic you create. 
+* Please ask all questions on Piazza.
+* Do not answer your classmates' questions. Only the teaching staff will answer exam questions.
+
+## Key Points for Grading
+
+### Workflow
+* Clean repo
+* At least 5 commits with sensible commit messages, i.e., not "stuff" or "update."
+* Once we download your repo, can we replicate your work easily? (It is OK if you use a library which we need to download, but your Rmd better include all the necessary `library()` commands. Your Rmd file had better not include `install.packages()`, a command which should never appear in any Rmd.)
+
+### For Rmd file
+* Make your code readable. Formatting matters.
+* Include comments in your code. Rough guideline: You should have as many lines of comments as you have lines of code.
+* Follow the [Tidyverse Style Guide](http://style.tidyverse.org/index.html).  Look in particular at chapter 2 (Syntax) and Chapter 4 (Pipes). (Note that we have not taken off credit in the problem sets for a failure to do this. We will take off for this exam.)
+
+
+### For html file 
+* Spelling and punctuation matter.
+* Use captions, titles, axis labels and so on to make it clear what your tables and graphics mean.
+* Provide clear axis labels.  
+* Create a title and/or subtitle that describe the key result of your graphics.
+* Use your best judgment. For example, sometimes axis labels are unnecessary. [*Data Visualization: A practical introduction*](http://socviz.co/) by Kieran Healy is an excellent (and free!) guide to making high quality graphics with R. 
+
+
+ 
