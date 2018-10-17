@@ -1,0 +1,217 @@
+---
+title: 'Mid-Term #1'
+author: "David Kane"
+date: "October 10, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(knitr)
+library(scales)
+
+df <- read_csv("mt_1_elections-poll-ky06-1.csv")
+
+```
+
+
+## Question 1
+
+```{r}
+df %>% 
+  count(response) %>%
+  
+  # Instead of count, could also use group_by(response) %>% tally(). I should be
+  # more facile when using tally/count. Column names in tables should start with
+  # capital letters.
+  
+  kable(caption = "Democratic candidate with slight lead in raw responses", 
+        col.names = c("Response", "Number"))
+
+```
+
+## Question 2
+
+```{r}
+df %>% 
+  select(response, partyid) %>% 
+  
+  # Could also have used case_when() here. I am not sure if "No Party" and
+  # "Another Party" are the best terms for these categories. I suspect that
+  # "Independent" is a much more common term for non-R/Ds in these situations.
+  # But I didn't want to that given that the category included the Refused
+  # people. Maybe "Another Party" should be "3rd party"?
+  
+  mutate(partyid = recode(partyid, 
+                          "[DO NOT READ] Refused" = "No Party",
+                          "Independent (No party)" = "No Party",
+                          "or as a member of another political party" = "Another Party")) %>%
+  
+  # Not clear to me what order these factor levels should be in. I decided to
+  # order them, from top to botton, by support for the Democratic candidates.
+  # So, we have Democrats at the top and Republicans at the bottom.
+  
+  mutate(partyid = fct_relevel(partyid, 
+                               c("Democrat", "Another Party", 
+                                 "No Party", "Republican"))) %>% 
+  count(partyid, response) %>% 
+  
+  # Note the use of fill here. I think that that key cell --- for Another
+  # Party/Undecided --- should have a zero in it and not an NA, which is the
+  # default behavior of spread. We *know* that there are zero respondents in
+  # this bucket. We took points off if you left this as NA.
+  
+  spread(key = response, value = n, fill = 0) %>% 
+  kable(caption = "Party identification is strongly correlated with candidate preference",
+        col.names = c("Party ID", "Democrat", "Republican", "Undecided"))
+
+```
+
+## Question 3
+
+```{r}
+df %>% 
+  select(response, likely, ager) %>% 
+
+  # Seems like [DO NOT READ] is not really part of the value of this field. That
+  # is, no respondent said [DO NOT READ]. What they said was something along the
+  # lines of "I don't know" or "I don't want to answer that question." Much more
+  # likely is that this phrase was an instruction to the interviewer. In other
+  # words, this is just garbage data. So, it makes no sense to include [DO NOT
+  # READ] as part of the value.
+  
+  mutate(likely = ifelse(likely == "[DO NOT READ] Don't know/Refused", 
+                         "Don't know/Refused", likely)) %>% 
+  
+  # Want to make sure that the factor ordering makes sense. I prefer that Don't
+  # know/Refused category at the bottom and sorting by certainty. Presumably,
+  # respondents who (claim they are!) going to vote are more important; so they
+  # belong at the top.
+  
+  mutate(likely = fct_relevel(likely, c("Almost certain",
+                                        "Very likely",
+                                        "Somewhat likely",
+                                        "Not very likely",
+                                        "Not at all likely",
+                                        "Don't know/Refused"))) %>% 
+  
+  # If we had hundreds of ranges, we would want to parse out the two numbers,
+  # coerce them, add them and then divide by 2 programmatically. But, with just
+  # a few levels, we will just hard code it.
+    
+  mutate(age = case_when(ager == "18 to 34" ~ 26,
+                         ager == "35 to 49" ~ 42,
+                         ager == "50 to 64" ~ 57,
+                         ager == "65 and older" ~ 75,
+                         TRUE ~ NA_real_)) %>% 
+  
+  # mutate(), group_by(), summarize() and then spread() is a very common
+  # sequence of functions.
+  
+  group_by(likely, response) %>% 
+  summarize(avg_age = mean(age, na.rm = TRUE)) %>% 
+  spread(key = response, value = avg_age) %>% 
+  
+  # Reasonable people can argue about whether the digits should be 0 or 1. After
+  # all, we are imputing ages, so we have very little precision. But just
+  # leaving digits at the default of 7 is absurd. Nice columns names are always
+  # a feature.
+  
+  kable(caption = 
+          "There is no clear connection between age and reported likelihood of voting.", 
+        digits = 1,
+        col.names = c("Reported Voting Intention", "Democrat", "Republican", "Undecided"))
+
+```
+
+
+## Question 4
+
+```{r q1}
+df %>% 
+  select(response, region, final_weight) %>% 
+  group_by(region, response) %>% 
+  
+  tally(wt = final_weight) %>% 
+  spread(key = response, value = n) %>% 
+  
+  # But our weighted tally does not give us the percentages by row. We need to
+  # calculate these by hand, first by summing the total number of individuals in
+  # each row and then dividing each cell by the row sum. Note the convenient
+  # percent() function from the scales library.
+  
+  mutate(all = Dem + Rep + Und) %>% 
+  mutate(Dem = percent(Dem/all, accuracy = 1),
+         Rep = percent(Rep/all, accuracy = 1),
+         Und = percent(Und/all, accuracy = 1)) %>% 
+  select(-all) %>% 
+  
+  # Did you have to do everything we did here? No, especially those tricks, like
+  # percent(), that we did not cover in the last problem set solutions. But it
+  # really isn't that hard to make something which looks a lot like the NYT,
+  # including their stupid column names.
+  
+  kable(caption = "Voters outside Fayette and Inner Bluegrass favor the Republican candidate", 
+        col.names = c("Region", "DEM.", "REP.", "UND."))
+
+```
+
+## Question 5
+
+```{r}
+# There are an infinite number of graphics that you could use to answer this
+# question. Here is ours:
+
+df %>% 
+  select(race_eth, educ4, turnout_score, final_weight) %>% 
+  
+  # Delete missing data of various types. I should spend more time on this. Just
+  # how much data are we throwing away?
+  
+  drop_na() %>% 
+  filter(race_eth != "[DO NOT READ] Don't know/Refused") %>% 
+  filter(educ4 != "[DO NOT READ] Don't know/Refused") %>% 
+  
+  # Create two new variables for use in the graphics.
+  
+  mutate(race = ifelse(race_eth == "White", "White", "Nonwhite")) %>% 
+  
+  mutate(education = recode_factor(educ4,
+                                   `High School Grad. or Less` = "High School",
+                                   `Some College Educ.` = "Some College",
+                                   `4-year College Grad.` = "College Degree",
+                                   `Postgraduate Degree` = "Postgraduate")) %>% 
+  
+  # Education is really the key variable when it comes to explaining
+  # final_weight, at least as far as I can tell. You can certainly use it (or
+  # not), but, if you do use it, you have to show other variables as well. So,
+  # within education levels, we look at the relationship between likely turnout
+  # and final_weight, for whites and non-whites.
+  
+  ggplot(aes(turnout_score, final_weight)) + 
+      geom_point(alpha = 0.5) + 
+      geom_smooth(aes(turnout_score, final_weight, color = race), 
+                  method = "lm", se = FALSE) + 
+      facet_grid(~ education) +
+      
+      # It is a major bother to get things to look nice, even once you have
+      # finished the substantive parts of the analysis. But that is life. Your
+      # boss will always care about the visual appeal of your work because,
+      # ultimately her boss (and/or the ultimate paying customer) also cares.
+  
+      ylab("Weight Used in Result Calculations") +
+      xlab("Turnout Propensity") +  
+      scale_x_continuous(breaks = c(0.25, 0.75)) +
+      ggtitle(label = "Less Educated, and Less Likely to Vote, Respondents Matter More",
+              subtitle = "Upshot/Siena Poll Results for Kentucky's 6th Congressional District") +
+      theme_minimal()
+
+```
+
+
+
+## Code
+
+```{r ref.label=knitr::all_labels(), echo = TRUE, eval = FALSE}
+```

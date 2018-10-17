@@ -1,0 +1,107 @@
+---
+title: "Analysis of Upshot/Siena Polling Data"
+author: "David Kane"
+date: "10/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(stringr)
+library(fs)
+library(scales)
+```
+
+```{r data, message=FALSE}
+# Not sure as to the best way to approach. We could read in raw files directly
+# with read_csv(), as long as we provide the full path, e.g.,
+
+# https://raw.githubusercontent.com/TheUpshot/2018-live-poll-results/master/data/elections-poll-wv03-1.csv
+
+# But that seems a bother and requires creating a list of file names. The gh
+# package allows access to the github API, but I couldn't figure out the trick
+# for getting that list. I certainly don't want to type them all by hand!
+
+# Best solution is to just download the zip archive and then unzip it.
+# Presumably (!), it is updated each time Upshot/Sienna releases new polling
+# data.
+
+download.file("https://github.com/TheUpshot/2018-live-poll-results/archive/master.zip",
+              "2018-live-poll-results-master.zip",
+              quiet = TRUE)
+
+unzip("2018-live-poll-results-master.zip")
+
+# Might want to delete this unzipped data (and the zipped data?) at the end, for
+# cleanliness. Even better would be to run a check which compares the latest
+# download to the previous one and reports on any strangeness. Anyway, let's
+# follow the advice here:
+
+# https://www.gerkelab.com/blog/2018/09/import-directory-csv-purrr-readr/
+
+ df <- fs::dir_ls("2018-live-poll-results-master/data") %>%
+   map_dfr(read_csv, .id = "source") %>% 
+   
+   # The beginnings of the filenames --- which we have now stored in "source"
+   # --- are (always?) the same. Then comes a two letter state identifier (wv,
+   # ca), a two digit congressional district (03, 49), a dash, and then a number
+   # to indicate which poll this is. There is at least one senate race,
+   # indicated by "nvsen-2", with the "2" meaning, I think, the second poll they
+   # have done. But I guess that it could be the second senate seat.
+   # Fortunately, the source names are very consistent. The state identifiers
+   # are always the 51st and 52nd character.
+   
+   mutate(state = toupper(str_sub(source, 51, 52)))
+   
+   # Might argue that regexp = "\\.csv$" should be included in the call to
+   # dir_ls() or that we should start the pipe with just the name of the
+   # directory. Might also want to only include House races, so get rid of the
+   # "sen" files. Leave all that for next time.
+  
+```
+
+```{r}
+# We are interested in the relationship of final_weight to other variables,
+# not just education. 
+
+df %>% 
+  select(source, state, race_eth, educ4, turnout_score, final_weight) %>% 
+  
+  # Delete missing data of various types. I should spend more time on this. Just
+  # how much data are we throwing away?
+  
+  drop_na() %>% 
+  filter(race_eth != "[DO NOT READ] Don't know/Refused") %>% 
+  filter(educ4 != "[DO NOT READ] Don't know/Refused") %>% 
+  
+  # Create two new variables for use in the graphics.
+  
+  mutate(race = ifelse(race_eth == "White", "White", "Nonwhite")) %>% 
+  
+  mutate(education = recode_factor(educ4,
+                                   `High School Grad. or Less` = "High School",
+                                   `Some College Educ.` = "Some College",
+                                   `4-year College Grad.` = "College Degree",
+                                   `Postgraduate Degree` = "Postgraduate")) %>% 
+    
+  ggplot(aes(turnout_score, final_weight)) + 
+      geom_point(alpha = 0.05) + 
+      geom_smooth(aes(turnout_score, final_weight, color = race), 
+                  method = "lm", se = FALSE) + 
+      facet_grid(~ education) +
+      ylab("Weight Used in Result Calculations") +
+      xlab("Turnout Propensity") +  
+      scale_x_continuous(breaks = c(0.25, 0.75)) +
+      ggtitle(label = "Less Educated, and Less Likely to Vote, Respondents Matter More",
+              subtitle = "Upshot/Siena Poll Results for 45 Congressional Elections as of October 15th") +
+  theme_minimal() -> p
+
+```
+
+
+
+## Code
+
+```{r ref.label=knitr::all_labels(), echo = TRUE, eval = FALSE}
+```
